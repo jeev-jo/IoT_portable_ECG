@@ -5,6 +5,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center">
+
 
     <com.github.mikephil.charting.charts.LineChart
         android:id="@+id/chart"
@@ -17,7 +22,9 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.342"
-        tools:ignore="MissingClass" />
+        tools:ignore="MissingClass"
+        android:layout_below="@+id/res"
+        android:layout_marginTop="40dp"/>
 
     <Button
         android:id="@+id/b"
@@ -26,7 +33,18 @@
         android:text="Start"
         tools:ignore="MissingConstraints"
         tools:layout_editor_absoluteX="155dp"
-        tools:layout_editor_absoluteY="522dp" />
+        tools:layout_editor_absoluteY="522dp"
+        android:layout_below="@+id/chart"
+        android:layout_marginTop="40dp"/>
+    <EditText
+        android:layout_width="300dp"
+        android:layout_height="60dp"
+        android:layout_marginTop="40dp"
+        android:gravity="center"
+        android:id="@+id/res"
+        android:text="it will change"/>
+    </RelativeLayout>
+
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
