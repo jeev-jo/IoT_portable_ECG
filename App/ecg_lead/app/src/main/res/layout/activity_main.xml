@@ -36,6 +36,18 @@
         tools:layout_editor_absoluteY="522dp"
         android:layout_below="@+id/chart"
         android:layout_marginTop="40dp"/>
+
+    <Button
+        android:id="@+id/record"
+        android:layout_width="100dp"
+        android:layout_height="50dp"
+        android:text="Record"
+        tools:ignore="MissingConstraints"
+        tools:layout_editor_absoluteX="155dp"
+        tools:layout_editor_absoluteY="522dp"
+        android:layout_below="@+id/b"
+        android:layout_marginTop="20dp"/>
+
     <EditText
         android:layout_width="300dp"
         android:layout_height="60dp"
