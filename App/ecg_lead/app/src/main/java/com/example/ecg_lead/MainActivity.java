@@ -2,6 +2,7 @@ package com.example.ecg_lead;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
 import android.os.Bundle;
 import android.util.Log;
@@ -29,6 +30,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -155,19 +157,41 @@ public class MainActivity extends AppCompatActivity {
     }
     private void saveToPdf() {
         // Create a new PDF document
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        Date date = new Date();
+
+        // Calculate BPM from the chart data
+        //List<Float> chartData = (List<Float>) chart.getData();
+        //float durationSeconds = chartData.size() / 60;
+        //float bpm = chartData.size() / durationSeconds * 60;
+
+        // Analyze the rhythm of the chart data
+        //String rhythm = analyzeRhythm(chartData);
+
+        // Create a new PDF document
         PdfDocument pdfDocument = new PdfDocument();
 
         // Set up the page dimensions and attributes
         PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(
-                chart.getWidth(), chart.getHeight(), 1)
+                chart.getWidth(), chart.getHeight() + 150, 1)
                 .create();
 
         // Start a new page in the document
         PdfDocument.Page page = pdfDocument.startPage(pageInfo);
 
-        // Draw the chart on the PDF page canvas
+        // Draw the date, bpm, and rhythm at the top of the PDF page
         Canvas canvas = page.getCanvas();
+        // Draw the chart on the PDF page canvas
         chart.draw(canvas);
+
+        Paint paint = new Paint();
+        paint.setTextSize(20);
+        paint.setColor(Color.BLACK);
+        canvas.drawText("Date: " + dateFormat.format(date), 50, 50, paint);
+        //canvas.drawText("BPM: " + String.format("%.1f", bpm), 50, 80, paint);
+        canvas.drawText("Rhythm: " + "Sinus Rhythm", chart.getWidth() - 350, 80, paint);
+
+
 
         // Finish the page
         pdfDocument.finishPage(page);
@@ -189,6 +213,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Close the document
         pdfDocument.close();
+    }
+    private String analyzeRhythm(List<Float> data) {
+        // TODO: Implement rhythm analysis algorithm
+        return "Sinus Rhythm";
     }
 
     @Override
