@@ -31,6 +31,8 @@ import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import uk.me.berndporr.iirj.*;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -71,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+
     private void connectWebSocket() {
         URI uri;
         try {
@@ -90,42 +93,57 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onMessage(String s) {
-                // Convert the received value to a float
-                float value = Float.parseFloat(s);
-                // Get the chart's existing data and dataset
-                LineData data = chart.getData();
-                if (data != null) {
-                    LineDataSet set = (LineDataSet) data.getDataSetByIndex(0);
-                    if (set == null) {
-                        set = createSet();
-                        data.addDataSet(set);
-                    }
-                    // Add the new value to the dataset and notify the chart of the update
-                    set.addEntry(new Entry(set.getEntryCount(), value));
-                    data.notifyDataChanged();
-                    chart.setDrawMarkers(true);
-                    chart.notifyDataSetChanged();
-                    // Scroll the chart to the right to show the latest data
-                    chart.setVisibleXRangeMaximum(200);
-                    chart.moveViewToX(data.getEntryCount() - 1);
+                try {
+                    // Convert the received value to a float
+                    float value = Float.parseFloat(s);
 
-                    // Save the ECG data to a CSV file with timestamp
-                    try {
-                        FileWriter writer = new FileWriter(getExternalFilesDir(null) + "/ecg_data.csv", true);
-                        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
-                        String csvString = timestamp + "," + value + "\n";
-                        writer.write(csvString);
-                        writer.flush();
-                        writer.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    // Apply Butterworth filter to incoming data
+                    Butterworth butterworth = new Butterworth();
+                    float filteredValue = (float) butterworth.filter(value);
 
-                    // Add the timestamped value to the list of ecg data
-                    //EcgData ecgData = EcgData.getInstance();
-                    //ecgData.add(new EntryWithTimestamp(value, System.currentTimeMillis()));
+                    // Get the chart's existing data and dataset
+                    LineData data = chart.getData();
+                    if (data != null) {
+                        LineDataSet set = (LineDataSet) data.getDataSetByIndex(0);
+                        if (set == null) {
+                            set = createSet();
+                            data.addDataSet(set);
+                        }
+                        // Add the new value to the dataset and notify the chart of the update
+                        set.addEntry(new Entry(set.getEntryCount(), filteredValue));
+                        data.notifyDataChanged();
+                        chart.setDrawMarkers(true);
+                        chart.notifyDataSetChanged();
+                        // Scroll the chart to the right to show the latest data
+                        chart.setVisibleXRangeMaximum(200);
+                        chart.moveViewToX(data.getEntryCount() - 1);
+
+                        // Save the ECG data to a CSV file with timestamp
+                        try {
+                            FileWriter writer = new FileWriter(getExternalFilesDir(null) + "/ecg_data.csv", true);
+                            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
+                            String csvString = timestamp + "," + filteredValue + "\n";
+                            writer.write(csvString);
+                            writer.flush();
+                            writer.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                        // Add the timestamped value to the list of ecg data
+                        //EcgData ecgData = EcgData.getInstance();
+                        //ecgData.add(new EntryWithTimestamp(filteredValue, System.currentTimeMillis()));
+                    }
+                } catch (NumberFormatException e) {
+                    e.printStackTrace();
+                    // Handle the exception
+                } catch (IndexOutOfBoundsException e) {
+                    e.printStackTrace();
+                    // Handle the exception
                 }
             }
+
+
 
             // Helper method to create a LineDataSet
             private LineDataSet createSet() {
