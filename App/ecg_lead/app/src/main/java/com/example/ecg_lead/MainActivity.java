@@ -1,5 +1,6 @@
 package com.example.ecg_lead;
 
+import android.annotation.SuppressLint;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -8,7 +9,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -31,13 +32,14 @@ import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import uk.me.berndporr.iirj.*;
+
+import uk.me.berndporr.iirj.Butterworth;
 
 
 public class MainActivity extends AppCompatActivity {
 
     private WebSocketClient mWebSocketClient;
-    private EditText res;
+    private TextView res;
 
     private LineChart chart;
 
@@ -84,11 +86,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         mWebSocketClient = new WebSocketClient(uri) {
+            @SuppressLint("SetTextI18n")
             @Override
             public void onOpen(ServerHandshake serverHandshake) {
                 Log.i("Websocket", "Opened");
                 mWebSocketClient.send("Hello from Android!");
-                res.setText("");
+                res.setText("Web Socket Connected");
             }
 
             @Override
@@ -122,22 +125,23 @@ public class MainActivity extends AppCompatActivity {
                         try {
                             FileWriter writer = new FileWriter(getExternalFilesDir(null) + "/ecg_data.csv", true);
                             String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
-                            String csvString = timestamp + "," + filteredValue + "\n";
-                            writer.write(csvString);
+                            int count = set.getEntryCount();
+                            if (count <= 3000) { // 3000 samples = 30 seconds assuming 100 Hz sampling rate
+                                String csvString = timestamp + "," + filteredValue + "\n";
+                                writer.write(csvString);
+                            }
                             writer.flush();
                             writer.close();
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
 
+
                         // Add the timestamped value to the list of ecg data
                         //EcgData ecgData = EcgData.getInstance();
                         //ecgData.add(new EntryWithTimestamp(filteredValue, System.currentTimeMillis()));
                     }
-                } catch (NumberFormatException e) {
-                    e.printStackTrace();
-                    // Handle the exception
-                } catch (IndexOutOfBoundsException e) {
+                } catch (NumberFormatException | IndexOutOfBoundsException e) {
                     e.printStackTrace();
                     // Handle the exception
                 }
@@ -205,9 +209,17 @@ public class MainActivity extends AppCompatActivity {
         Paint paint = new Paint();
         paint.setTextSize(20);
         paint.setColor(Color.BLACK);
-        canvas.drawText("Date: " + dateFormat.format(date), 50, 50, paint);
-        //canvas.drawText("BPM: " + String.format("%.1f", bpm), 50, 80, paint);
-        canvas.drawText("Rhythm: " + "Sinus Rhythm", chart.getWidth() - 350, 80, paint);
+
+        // Get the canvas dimensions
+        int canvasWidth = canvas.getWidth();
+        int canvasHeight = canvas.getHeight();
+
+        // Draw the date
+        canvas.drawText("Date: " + dateFormat.format(date), 50, canvasHeight - 100, paint);
+
+        // Draw the rhythm
+        canvas.drawText("Rhythm: " + "Sinus Rhythm", canvasWidth - 350, canvasHeight - 100, paint);
+
 
 
 
