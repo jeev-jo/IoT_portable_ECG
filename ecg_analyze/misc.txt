@@ -1,0 +1,213 @@
+public static class ecgAnalyzer {
+
+        private static final int SAMPLING_RATE = 100; // Hz
+        private static final int WINDOW_SIZE = 200; // samples
+        private static final double THRESHOLD_RATIO = 0.5;
+
+        public static void main(String[] args) {
+            String fileName = "ecg_data.csv";
+            List<Double> ecgData = readCsvFile(fileName);
+
+            if (ecgData != null && !ecgData.isEmpty()) {
+                double[] intervals= calculateIntervals(ecgData);
+                double rhythm = intervals[5];
+
+                System.out.println("P interval: " + formatDecimal(intervals[0]) + " s");
+                System.out.println("QT interval: " + formatDecimal(intervals[1]) + " s");
+                System.out.println("QRS interval: " + formatDecimal(intervals[2]) + " s");
+                System.out.println("Rhythm: " + rhythm);
+            } else {
+                System.out.println("Error: empty or null ECG data.");
+            }
+        }
+
+        /**
+         * Read ECG data from a CSV file.
+         */
+        private static List<Double> readCsvFile(String fileName) {
+            List<Double> ecgData = new ArrayList<>();
+            try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] values = line.split(",");
+                    ecgData.add(Double.parseDouble(values[1]));
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return ecgData;
+        }
+
+        private static final double LOW_CUTOFF_FREQUENCY = 0.5; // Hz
+        private static final double HIGH_CUTOFF_FREQUENCY = 15; // Hz
+        private static final int FILTER_ORDER = 2;
+
+        private static double[] calculateIntervals(List<Double> ecgData) {
+            int start = 0;
+            int end = ecgData.size() - 1;
+            int peakIndex = findPeakIndex(ecgData,start,end);
+            if (peakIndex != -1) {
+                int qrsEndIndex = findQrsEndIndex(ecgData, peakIndex);
+                if (qrsEndIndex != -1) {
+                    int qrsDuration = (int) calculateQrsDuration(ecgData, peakIndex, qrsEndIndex);
+                }
+            }
+
+            // find QRS complex peaks
+            List<Integer> qrsPeakIndices = findQrsPeaks(ecgData);
+
+            // get the index of the first peak in the list
+            int qrsPeakIndex = qrsPeakIndices.get(0);
+
+            int qrsOnsetIndex = findQrsOnsetIndex(ecgData, qrsPeakIndex);
+            int pStartIndex = findPStartIndex(ecgData, qrsOnsetIndex);
+            int pPeakIndex = findPeakIndex(ecgData, pStartIndex, qrsOnsetIndex);
+            int pEndIndex = findPEndIndex(ecgData, pStartIndex);
+
+            int pStartIndex = findPStartIndex(ecgData, pPeakIndex, qrsOnsetIndex);
+            int pEndIndex = findPEndIndex(ecgData, pStartIndex);
+            int pDuration = (pEndIndex - pStartIndex) * 1000 / SAMPLING_RATE;
+
+            int qtStartIndex = findQrsEndIndex(ecgData);
+            int qtEndIndex = qtStartIndex + (int) (0.2 * SAMPLING_RATE); // end 200 ms after QRS end
+            int qtDuration = (qtEndIndex - qtStartIndex) * 1000 / SAMPLING_RATE;
+
+            double[] intervals = new double[3];
+            intervals[0] = pDuration;
+            intervals[1] = qrsDuration;
+            intervals[2] = qtDuration;
+
+            return intervals;
+        }
+
+        public static String formatDecimal(double value) {
+            DecimalFormat df = new DecimalFormat("#.00");
+            return df.format(value);
+        }
+
+        /**
+         * Calculates the duration of the QRS complex in milliseconds.
+         * @param ecgData the ECG signal
+         * @param qrsStartIndex the index of the beginning of the QRS complex
+         * @param qrsEndIndex the index of the end of the QRS complex
+         * @return the duration of the QRS complex in milliseconds
+         */
+        private static double calculateQrsDuration(List<Double> ecgData, int qrsStartIndex, int qrsEndIndex) {
+            double duration = (qrsEndIndex - qrsStartIndex) / SAMPLING_RATE * 1000; // in milliseconds
+            return formatDecimal(duration);
+        }
+        /**
+         * Find the index of the end of the QRS complex.
+         *
+         * @param ecgData the ECG data to analyze
+         * @param peakIndex the index of the peak corresponding to the QRS complex
+         * @return the index of the end of the QRS complex, or -1 if not found
+         */
+        private static int findQrsEndIndex(List<Double> ecgData, int peakIndex) {
+            double threshold = 0.5 * calculateRms(ecgData, peakIndex - (int) (0.1 * SAMPLING_RATE), peakIndex);
+            for (int i = peakIndex; i < ecgData.size(); i++) {
+                if (ecgData.get(i) < threshold) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        public static int findPeakIndex(List<Double> signal, int startIndex, int endIndex) {
+            double max = Double.MIN_VALUE;
+            int maxIndex = -1;
+            for (int i = startIndex; i <= endIndex; i++) {
+                if (signal.get(i) > max) {
+                    max = signal.get(i);
+                    maxIndex = i;
+                }
+            }
+            return maxIndex;
+        }
+        private static int findPStartIndex(List<Double> ecgData, int peakIndex) {
+            int pStartIndex = -1;
+            double threshold = 0.25 * (ecgData.get(peakIndex) - findBaseline(ecgData, peakIndex));
+            for (int i = peakIndex; i >= 0; i--) {
+                if (ecgData.get(i) < threshold) {
+                    pStartIndex = i;
+                    break;
+                }
+            }
+            return pStartIndex;
+        }
+        /**
+         * Finds the baseline (isoelectric line) of the ECG signal.
+         *
+         * @param ecgData the ECG signal data
+         * @return the baseline value
+         */
+        private static double findBaseline(List<Double> ecgData) {
+            double sum = 0;
+            int count = 0;
+            for (Double value : ecgData) {
+                sum += value;
+                count++;
+            }
+            return sum / count;
+        }
+        private int findQrsOnsetIndex(List<Double> ecgData, int rPeakIndex) {
+            double threshold = calculateThreshold(ecgData, rPeakIndex);
+            int startIndex = rPeakIndex;
+
+            while (startIndex >= 0 && ecgData.get(startIndex) > threshold) {
+                startIndex--;
+            }
+
+            return startIndex;
+        }
+        public double calculateThreshold(List<Double> ecgData, int rPeakIndex) {
+            // Find the maximum R-peak amplitude
+            double maxAmplitude = 0;
+            for (int i = rPeakIndex - (int)(0.2*SAMPLING_RATE); i <= rPeakIndex + (int)(0.2*SAMPLING_RATE); i++) {
+                if (i >= 0 && i < ecgData.size()) {
+                    double amplitude = Math.abs(ecgData.get(i));
+                    if (amplitude > maxAmplitude) {
+                        maxAmplitude = amplitude;
+                    }
+                }
+            }
+            // Calculate the threshold as a percentage of the maximum R-peak amplitude
+            double threshold = 0.5 * maxAmplitude;
+            return threshold;
+        }
+        public List<Integer> findQrsPeaks(List<Double> ecgData, int fs) {
+
+
+            // Find R-peaks
+            List<Integer> rPeaks = findRPeaks(ecgData, fs);
+
+            // Calculate threshold for QRS detection
+            double threshold = calculateThreshold(ecgData, rPeaks);
+
+            // Find QRS peaks
+            List<Integer> qrsPeaks = new ArrayList<>();
+            for (int i = 0; i < rPeaks.size(); i++) {
+                int rPeakIndex = rPeaks.get(i);
+                int qrsPeakIndex = findQrsPeak(filteredSignal, rPeakIndex, threshold);
+                qrsPeaks.add(qrsPeakIndex);
+            }
+            return qrsPeaks;
+        }
+        public List<Integer> findRPeaks(List<Double> ecgData, double samplingRate) {
+            List<Integer> rPeaks = new ArrayList<Integer>();
+
+
+            double[] diff = new double[ecgData.size()-1];
+            for(int i=0; i<diff.length; i++) {
+                diff[i] = ecgData.get(i+1) - ecgData.get(i);
+            }
+
+            double threshold = calculateThreshold(diff);
+
+            for(int i=1; i<diff.length; i++) {
+                if(diff[i-1] < threshold && diff[i] >= threshold) {
+                    rPeaks.add(i);
+                }
+            }
+
+            return rPeaks;
+        }
